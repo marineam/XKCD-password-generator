@@ -32,72 +32,48 @@ import random
 import os
 import sys
 
-def generate_wordlist(wordfile="", min_length=5, max_length=9):
-    """
-    generate a word list from either a kwarg word_file, or a system default
-    """
+WORD_FILE = os.path.join(os.path.dirname(__file__), "2of12.txt")
 
-    if not wordfile:
-        if "darwin" in sys.platform:
-            ## OS X
-            wordfile = "/usr/share/dict/words"
-        elif "linux" in sys.platform:
-            ## Linux
-            wordfile = "/usr/dict/words"
-        else:
-            # if we get here wordfile is not set, the try...except block below
-            # will catch it
-            print "No default word file found, please supply custom list"
+class Generator(object):
 
-    wordfile = os.path.expanduser(wordfile) # just to be sure
+    Random = random.SystemRandom
+    word_file = os.path.join(os.path.dirname(__file__), "2of12.txt")
+    min_length = 4
+    max_length = 9
+    phrase_length = 4
 
-    words = []
+    def __init__(self):
+        """Load the word list"""
 
-    try:
-        with open(wordfile) as wlf:
-            for line in wlf:
-                if min_length <= len(line.strip()) <= max_length:
-                    words.append(line.strip())
-    except:
-            print "Word list not loaded"
-            raise SystemExit
-    return words
+        self.random = self.Random()
+        self.words = []
 
-def generate_xkcdpassword(wordlist, n_words=4, interactive=False):
-    """
-    generate an XKCD-style password from the words in wordlist
-    """
-
-    # useful if driving the logic from other code
-    if not interactive:
         try:
-            # random.SystemRandom() should be cryptographically secure
-            return " ".join(random.SystemRandom().sample(wordlist, n_words))
-        except NotImplementedError:
-            print 'System does not support random number generator or Python version < 2.4.'      
+            with open(self.word_file) as wlf:
+                for line in wlf:
+                    word = line.strip()
+                    if self.min_length <= len(word) <= self.max_length:
+                        self.words.append(word)
+        except IOError, ex:
+            sys.stderr.write("Failed to read word list: %s" % ex)
+            sys.exit(1)
 
-    # else, interactive session 
-    custom_n_words = raw_input("Enter number of words (default 4): ")
-    if custom_n_words: n_words = int(custom_n_words)
-            
-    accepted = "n"
+        if not self.words:
+            sys.stderr.write("Empty word list from %s" % self.word_file)
+            sys.exit(1)
 
-    while accepted.lower() not in [ "y", "yes" ]:
-        try:
-            passwd = " ".join(random.SystemRandom().sample(wordlist, n_words))
-        except NotImplementedError:
-            print 'System does not support random number generator or Python version < 2.4.'
-        print "Generated: ", passwd
-        accepted = raw_input("Accept? [yN] ")     
+    def generate(self):
+        """Generate a single pass phrase."""
 
-    return passwd
+        return " ".join(self.random.sample(self.words, self.phrase_length))
+
+    def interactive_generator(self):
+        """Generate pass phrases until the user is happy."""
+
+        print self.generate()
+        while not raw_input():
+            print self.generate()
 
 if __name__ == '__main__':
-
-    custom_wordfile = "~/local/share/dict/common"
-
-    my_wordlist = generate_wordlist(custom_wordfile) 
-    print generate_xkcdpassword(my_wordlist, interactive=True)
-
-
-
+    g = Generator()
+    g.interactive_generator()
